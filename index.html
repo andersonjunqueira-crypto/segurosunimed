@@ -294,8 +294,11 @@ header.top{
 }
 .bar-col{
   flex:1 1 0;position:relative;height:100%;
-  display:flex;align-items:flex-end;
+  display:flex;align-items:flex-end;cursor:pointer;border-radius:3px;
+  transition:background .12s ease;
 }
+.bar-col:hover{background:var(--gray-tint);}
+.bar-col.active-month{background:#E4EAF3;}
 .bar-fill{width:100%;border-radius:2px 2px 1px 1px;min-height:2px;}
 .meta-tick{
   position:absolute;left:-1px;right:-1px;height:1.4px;
@@ -575,14 +578,17 @@ function sparkline(kr){
 
   let bars = '';
   let labels = '';
-  months.forEach((m)=>{
+  months.forEach((m, i)=>{
     const hasR = m.r !== null && m.r !== undefined;
     const hasM = m.m !== null && m.m !== undefined;
     const barPct = hasR && max > 0 ? Math.max((m.r/max)*100, 3) : 3;
     const metaPct = hasM && max > 0 ? (m.m/max)*100 : null;
     const barColor = hasR ? monthAchievementColor(kr, m.r, hasM ? m.m : null) : '#E9EBF0';
+    const rAttr = hasR ? m.r : '';
+    const mAttr = hasM ? m.m : '';
+    const isLatest = i === kr.last_idx;
 
-    bars += `<div class="bar-col">
+    bars += `<div class="bar-col${isLatest ? ' active-month' : ''}" data-r="${rAttr}" data-m="${mAttr}" data-mes="${m.mes}" onclick="selectMonth(this)">
       ${metaPct!==null ? `<div class="meta-tick" style="bottom:${metaPct.toFixed(1)}%"></div>` : ''}
       <div class="bar-fill" style="height:${barPct.toFixed(1)}%;background:${barColor}"></div>
     </div>`;
@@ -596,6 +602,27 @@ function sparkline(kr){
 }
 
 let openIdx = null;
+
+function selectMonth(el){
+  const barsRow = el.parentElement;
+  barsRow.querySelectorAll('.bar-col').forEach(b => b.classList.remove('active-month'));
+  el.classList.add('active-month');
+
+  const krRow = el.closest('.kr-row');
+  const valuesEl = krRow.querySelector('.kr-values');
+  const unidade = valuesEl.dataset.unidade;
+  const mes = el.dataset.mes;
+  const rRaw = el.dataset.r;
+  const mRaw = el.dataset.m;
+  const r = rRaw === '' ? null : parseFloat(rRaw);
+  const m = mRaw === '' ? null : parseFloat(mRaw);
+
+  if(r === null){
+    valuesEl.innerHTML = `<span class="m-val">sem dado registrado · ${mes}</span>`;
+  } else {
+    valuesEl.innerHTML = `<b>${fmtValue(r, unidade)}</b><br><span class="m-val">meta: ${m===null ? '—' : fmtValue(m, unidade)} · ${mes}</span>`;
+  }
+}
 
 function closeAllDetails(){
   document.querySelectorAll('.detail-row').forEach(d=>{
@@ -653,7 +680,7 @@ function selectTema(idx){
           <div class="kr-name">${k.nome}
             <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
           </div>
-          <div class="kr-values">
+          <div class="kr-values" data-unidade="${k.unidade}">
             ${k.latest_mes ? `<b>${fmtValue(k.latest_r, k.unidade)}</b><br><span class="m-val">meta: ${fmtValue(k.latest_m, k.unidade)} · ${k.latest_mes}</span>` : '<span class="m-val">sem dado registrado</span>'}
           </div>
           <div>${sparkline(k)}</div>
